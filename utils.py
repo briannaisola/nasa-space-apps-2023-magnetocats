@@ -9,6 +9,17 @@ import os
 
 
 
+
+def read_all_data(data_folder):
+    dat = []
+    for year in np.arange(2016,2023+1):
+        dat.append( read_year(data_folder, year) )
+    return pd.concat(dat)
+
+
+
+
+
 def read_year(data_folder, year_int):
     file_name = [ elem for elem in os.listdir(data_folder) if str(year_int) in elem ][0]
     file_path = os.path.join(data_folder, file_name)
