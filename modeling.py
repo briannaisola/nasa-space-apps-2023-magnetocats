@@ -19,6 +19,8 @@ import pickle
 import subprocess
 import time
 import yaml
+import wandb
+from wandb.keras import WandbMetricsLogger, WandbModelCheckpoint
 
 import keras
 import matplotlib
@@ -52,8 +54,12 @@ os.environ["CDF_LIB"] = "~/CDF/lib"
 # loading config and specific model config files. Using them as dictonaries
 config_path = "config.yaml"
 with open(config_path, 'r') as f:
-	MODEL_CONFIG = yaml.load(f, Loader=yaml.FullLoader)
+	CONFIG = yaml.load(f, Loader=yaml.FullLoader)
 
+if :
+	wandb_logger = WandbLogger(project="geoeffectivenet", log_model=True, name=wandb_run_name)
+else:
+	wandb_logger = False
 
 def getting_prepared_data():
 	'''
@@ -96,18 +102,18 @@ def create_CNN_model(n_features, loss='mse', early_stop_patience=10):
 
 	model = Sequential()						# initalizing the model
 
-	model.add(Conv2D(MODEL_CONFIG['filters'], 3, padding='same',
-								activation='relu', input_shape=(MODEL_CONFIG['time_history'], n_features, 1)))			# adding the CNN layer
+	model.add(Conv2D(CONFIG['filters'], 3, padding='same',
+								activation='relu', input_shape=(CONFIG['time_history'], n_features, 1)))			# adding the CNN layer
 	model.add(MaxPooling2D())
-	model.add(Conv2D(MODEL_CONFIG['filters']*2, 2, padding='same', activation='relu'))			# adding the CNN layer
+	model.add(Conv2D(CONFIG['filters']*2, 2, padding='same', activation='relu'))			# adding the CNN layer
 	model.add(MaxPooling2D())
 	model.add(Flatten())							# changes dimensions of model. Not sure exactly how this works yet but improves results
-	model.add(Dense(MODEL_CONFIG['filters']*2, activation='relu'))		# Adding dense layers with dropout in between
+	model.add(Dense(CONFIG['filters']*2, activation='relu'))		# Adding dense layers with dropout in between
 	model.add(Dropout(0.2))
-	model.add(Dense(MODEL_CONFIG['filters'], activation='relu'))
+	model.add(Dense(CONFIG['filters'], activation='relu'))
 	model.add(Dropout(0.2))
 	model.add(Dense(2, activation='linear'))
-	opt = tf.keras.optimizers.Adam(learning_rate=MODEL_CONFIG['initial_learning_rate'])		# learning rate that actually started producing good results
+	opt = tf.keras.optimizers.Adam(learning_rate=CONFIG['initial_learning_rate'])		# learning rate that actually started producing good results
 	model.compile(optimizer=opt, loss=loss)					# Ive read that cross entropy is good for this type of model
 	early_stop = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=early_stop_patience)		# early stop process prevents overfitting
 
@@ -139,7 +145,7 @@ def fit_CNN(model, X_train, X_val, y_train, y_val, early_stop):
 
 		# doing the training! Yay!
 		model.fit(Xtrain, ytrain, validation_data=(Xval, yval), verbose=1,
-					shuffle=True, epochs=MODEL_CONFIG['epochs'],  callbacks=[early_stop])
+					shuffle=True, epochs=CONFIG['epochs'],  callbacks=[early_stop])
 
 		# saving the model
 		model.save(f'models/model_version_{version}.h5')
@@ -206,8 +212,8 @@ def main():
 
 	# creating the model
 	print('Initalizing model...')
-	MODEL, early_stop = create_CNN_model(X_train.shape[2], loss=MODEL_CONFIG['loss'],
-											early_stop_patience=MODEL_CONFIG['early_stop_patience'])
+	MODEL, early_stop = create_CNN_model(X_train.shape[2], loss=CONFIG['loss'],
+											early_stop_patience=CONFIG['early_stop_patience'])
 
 	# fitting the model
 	print('Fitting model...')
