@@ -12,8 +12,68 @@ from getKPindex import getKpindex
 
 
 
+def storm_conditions(data_path: str, time_frame: int = 2, unit: str = 'd'):
+    '''
+    
+
+    Parameters
+    ----------
+    data_path : str
+        DESCRIPTION.
+    time_frame : int, optional
+        DESCRIPTION. The default is 2.
+
+    Returns
+    -------
+    None.
+
+    '''
+    df = pd.read_csv(data_path)
+    
+    #convert to datetime
+    df['time'] = pd.to_datetime(df['time'])
+    
+    df['time_stop'] = df['time'] + pd.to_timedelta(time_frame, unit = unit)
+    
+        
+    column_data = df.pop('Symh')
+    
+    # Insert the column at the desired index
+    df.insert(3, 'Symh', column_data)
+    
+    
+    selected_columns = ['time', 'time_stop']
+    time_condition = list(df[selected_columns].itertuples(index=False, name=None))
+    
+    
+    return time_condition
+    
+
+
+
 def binary_classification( datatype: str = 'Hp30', start_time: str = '2016-01-01',
                           stop_time: str = '2023-10-06', threshold: int = 3, save_path: str = '../Hp_Data/'):
+    '''
+    
+
+    Parameters
+    ----------
+    datatype : str, optional
+        DESCRIPTION. The default is 'Hp30'.
+    start_time : str, optional
+        DESCRIPTION. The default is '2016-01-01'.
+    stop_time : str, optional
+        DESCRIPTION. The default is '2023-10-06'.
+    threshold : int, optional
+        DESCRIPTION. The default is 3.
+    save_path : str, optional
+        DESCRIPTION. The default is '../Hp_Data/'.
+
+    Returns
+    -------
+    None.
+
+    '''
     
     #Get the data 
     
@@ -31,6 +91,18 @@ def binary_classification( datatype: str = 'Hp30', start_time: str = '2016-01-01
     #get the time to be in datetime 
     df['time'] = pd.to_datetime(df['time'])
     
+    #get the storm data
+    storm_path = os.path.join(save_path, 'storm_data.csv')
+    
+    conditions = storm_conditions(storm_path)
+    
+    #initialize an empty column for storing the storm filtered data
+    storm_df = pd.DataFrame(columns=df.columns)
+    
+    
+    for start_time, end_time in conditions:
+        temp_df = df[(df['time'] >= start_time.tz_localize('UTC')) & (df['time'] <= end_time.tz_localize('UTC'))]
+        storm_df = pd.concat([storm_df, temp_df], ignore_index=True)
     
     #Create folder in parent directory if it doens't exits
     
@@ -41,12 +113,33 @@ def binary_classification( datatype: str = 'Hp30', start_time: str = '2016-01-01
        print(f"Folder '{save_path}' already exists.")
     
     
-    filename = os.path.join(save_path, 'binary_data.csv')
-    df.to_csv(filename)
+    filename = os.path.join(save_path, 'storm_binary_data.csv')
+    storm_df.to_csv(filename)
     
     
 def multiple_classification(datatype: str = 'Hp30', start_time: str = '2016-01-01', 
                             stop_time: str = '2023-10-06', threshold: tuple = (3,6,9),save_path: str = '../Hp_Data/'):
+    '''
+    
+
+    Parameters
+    ----------
+    datatype : str, optional
+        DESCRIPTION. The default is 'Hp30'.
+    start_time : str, optional
+        DESCRIPTION. The default is '2016-01-01'.
+    stop_time : str, optional
+        DESCRIPTION. The default is '2023-10-06'.
+    threshold : tuple, optional
+        DESCRIPTION. The default is (3,6,9).
+    save_path : str, optional
+        DESCRIPTION. The default is '../Hp_Data/'.
+
+    Returns
+    -------
+    None.
+
+    '''
     
     #Get the data 
     data = getKpindex('2016-01-01','2023-10-06',index = datatype)
@@ -72,6 +165,20 @@ def multiple_classification(datatype: str = 'Hp30', start_time: str = '2016-01-0
     #get the time to be in datetime 
     df['time'] = pd.to_datetime(df['time'])
     
+    #get the storm data
+    storm_path = os.path.join(save_path, 'storm_data.csv')
+    
+    conditions = storm_conditions(storm_path)
+    
+    #initialize an empty column for storing the storm filtered data
+    storm_df = pd.DataFrame(columns=df.columns)
+    
+    
+    for start_time, end_time in conditions:
+        temp_df = df[(df['time'] >= start_time.tz_localize('UTC')) & (df['time'] <= end_time.tz_localize('UTC'))]
+        storm_df = pd.concat([storm_df, temp_df], ignore_index=True)
+    
+    
     
     #Create folder in parent directory if it doens't exits
     
@@ -82,8 +189,8 @@ def multiple_classification(datatype: str = 'Hp30', start_time: str = '2016-01-0
        print(f"Folder '{save_path}' already exists.")
     
     
-    filename = os.path.join(save_path, 'multiclass_data.csv')
-    df.to_csv(filename)
+    filename = os.path.join(save_path, 'storm_multiclass_data.csv')
+    storm_df.to_csv(filename)
     
     
     
