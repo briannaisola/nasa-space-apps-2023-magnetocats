@@ -1,12 +1,10 @@
-####################################################################################
+##########################################################################################
 #
-# exmining_twins_and_supermag/modeling_v0.py
+# nasa-space-apps-2023-magnetocats/modeling.py
 #
-# Performing the modeling using only the Solar Wind and Ground Magnetomoeter data.
-# Similar model to Coughlan (2023) but with a different target variable. Will be
-# used for comparison to the model that incorperates the reduced TWINS data.
+# Performing the modeling using the Dscovr data and predicting the Hp30 target variable.
 #
-####################################################################################
+##########################################################################################
 
 
 # Importing the libraries
