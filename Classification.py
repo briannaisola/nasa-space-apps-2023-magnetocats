@@ -12,7 +12,7 @@ from getKPindex import getKpindex
 
 
 
-def storm_conditions(data_path: str, time_frame: int = 2, unit: str = 'd'):
+def storm_conditions(data_path: str, time_frame: int = 1, unit: str = 'd'):
     '''
     
 
@@ -35,14 +35,16 @@ def storm_conditions(data_path: str, time_frame: int = 2, unit: str = 'd'):
     
     df['time_stop'] = df['time'] + pd.to_timedelta(time_frame, unit = unit)
     
+    df['time_start'] = df['time'] - pd.to_timedelta(time_frame, unit = unit)
+    
         
     column_data = df.pop('Symh')
     
     # Insert the column at the desired index
-    df.insert(3, 'Symh', column_data)
+    df.insert(4, 'Symh', column_data)
     
     
-    selected_columns = ['time', 'time_stop']
+    selected_columns = ['time_start', 'time_stop']
     time_condition = list(df[selected_columns].itertuples(index=False, name=None))
     
     
