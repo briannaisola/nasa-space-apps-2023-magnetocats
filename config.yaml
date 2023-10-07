@@ -1,0 +1,47 @@
+# Start limit of the years
+yearlist_begin: 2016
+
+# End limit of the years(This year is not included)
+yearlist_end: 2023+1
+
+# Time history (minutes)
+time_history: 30
+
+# Base number of filters in the convolutional layers, may be modified in the model class
+filters: 32
+
+# Number of convolutional layers (each comes with a Conv2D and a MaxPooling2D layer together)
+num_conv_layers: 2
+
+# Number of fully-connected layers
+num_fc_layers: 1
+
+# Dropout probability
+dropout: 0.2
+
+# Initial learning rate
+initial_learning_rate: 5e-4
+
+# Batch size
+batch_size: 2800
+
+# Maximum number of epochs to train
+epochs: 400
+
+# Keras loss function
+loss: "MSE"
+
+# Input data path (DSCOVR)
+solarwind_path: "../data/dscovr/"
+
+# Target data path (Hp30)
+target_dir_path: "../data/hp30/"
+
+# Random seed
+random_seed: 42
+
+# Whether to log training progress in WandB
+wandb_logging: True
+
+# Checkpoint folder name and experiment name in wandb
+experiment_name: "experiment"
