@@ -1,12 +1,8 @@
 ####################################################################################
 #
-# exmining_twins_and_supermag/modeling_v0.py
+# nasa-space-apps-2023-magnetocats/hyperparameter_tuning.py
 #
-# Performing the modeling using the Solar Wind and Ground Magnetomoeter data.
-# TWINS data passes through a pre-trained autoencoder that reduces the TWINS maps
-# to a reuced dimensionality. This data is then concatenated onto the model after
-# both branches of the CNN hae been flattened, and before the dense layers.
-# Similar model to Coughlan (2023) but with a different target variable.
+# Doing hyperparameter tuning for the CNN model using optuna package.
 #
 ####################################################################################
 
@@ -53,17 +49,12 @@ from data_prep import DataPrep
 
 os.environ["CDF_LIB"] = "~/CDF/lib"
 
-region_path = '../identifying_regions/outputs/adjusted_regions.pkl'
-region_number = '163'
-solarwind_path = '../data/SW/omniData.feather'
-supermag_dir_path = '../data/supermag/'
-twins_times_path = 'outputs/regular_twins_map_dates.feather'
-rsd_path = '../identifying_regions/outputs/twins_era_stats_dict_radius_regions_min_2.pkl'
+input_file = ''
+target_file = ''
 random_seed = 42
 
-
 # loading config and specific model config files. Using them as dictonaries
-with open('twins_config.json', 'r') as con:
+with open('hyperparameter_tuning_config.json', 'r') as con:
 	CONFIG = json.load(con)
 
 
@@ -72,19 +63,19 @@ def getting_prepared_data():
 	Calling the data prep class without the TWINS data for this version of the model.
 
 	Returns:
-		X_train (np.array): training inputs for the model
-		X_val (np.array): validation inputs for the model
-		X_test (np.array): testing inputs for the model
-		y_train (np.array): training targets for the model
-		y_val (np.array): validation targets for the model
-		y_test (np.array): testing targets for the model
+		Xtrain (np.array): training inputs for the model
+		Xval (np.array): validation inputs for the model
+		Xtest (np.array): testing inputs for the model
+		ytrain (np.array): training targets for the model
+		yval (np.array): validation targets for the model
+		ytest (np.array): testing targets for the model
 
 	'''
 
 	prep = DataPrep(region_path, region_number, solarwind_path, supermag_dir_path, twins_times_path,
 					rsd_path, random_seed)
 
-	Xtrain, ytrain, Xval, yval, Xtest, ytest  = prep.full_data_prep(DATA_PREP_CONFIG)
+	Xtrain, Xval, Xtest, ytrain, yval, ytest  = prep.full_data_prep(DATA_PREP_CONFIG)
 
 	Xtrain = train[:(int(len(train)*0.1)),:,:]
 	ytrain = train[:(int(len(train)*0.1)),:,:]
@@ -106,7 +97,7 @@ def getting_prepared_data():
 	# train = Generator(train, train, batch_size=16, shuffle=True)
 	# val = Generator(val, val, batch_size=16, shuffle=True)
 
-	return train, val, test, input_shape
+	return Xtrain, Xval, Xtest, ytrain, yval, ytest, input_shape
 
 
 def CNN(input_shape, trial, early_stopping_patience=10):
@@ -114,10 +105,12 @@ def CNN(input_shape, trial, early_stopping_patience=10):
 
 	initial_filters = trial.suggest_categorical('initial_filters', [32, 64, 128])
 	learning_rate = trial.suggest_loguniform('learning_rate', 1e-7, 1e-2)
-	layers = trial.suggest_int('layers', 2, 4)
+	cnn_layers = trial.suggest_int('layers', 2, 4)
+	dense_layers = trial.suggest_int('dense_layers', 2, 4)
+	maxpool = trial.suggest_categorical('maxpool', [True, False])
 	activation = trial.suggest_categorical('activation', ['relu', 'tanh', 'sigmoid'])
 
-	loss_function = 'binary_crossentropy'
+	loss_function = CONFIG['loss_function']
 
 	print(f'YOURE USING {loss_function} LOSS FUNCTION!!!!')
 
@@ -131,9 +124,13 @@ def CNN(input_shape, trial, early_stopping_patience=10):
 
 		if i == 0:
 			c = Conv2D(filters=filters, kernel_size=3, activation=activation, strides=1, padding='same')(model_input)
+			if maxpool:
+				c = MaxPooling2D()(c)
 			filters = (filters*2)
 		else:
 			c = Conv2D(filters=filters, kernel_size=3, activation=activation, strides=1, padding='same')(c)
+			if maxpool:
+				c = MaxPooling2D()(c)
 			filters = (filters*2)
 
 	shape = int_shape(c)
@@ -159,7 +156,7 @@ def CNN(input_shape, trial, early_stopping_patience=10):
 	return full_model, early_stop
 
 
-def objective(trial, Xtrain, ytrain, Xval, yval, Xtest, ytest, input_shape):
+def objective(trial, Xtrain, Xval, Xtest, ytrain, yval, ytest, input_shape):
 
 	model, early_stop = CNN(input_shape, trial)
 	print(model.summary())
@@ -167,7 +164,7 @@ def objective(trial, Xtrain, ytrain, Xval, yval, Xtest, ytest, input_shape):
 	try:
 		model.fit(Xtrain, ytrain, validation_data=(Xval, yval),
 				verbose=1, shuffle=True, epochs=500,
-				callbacks=[early_stop], batch_size=16)			# doing the training! Yay!
+				callbacks=[early_stop], batch_size=CONFIG['batch_size'])			# doing the training! Yay!
 	except:
 		print('Resource Exhausted Error')
 		return None
@@ -183,12 +180,12 @@ def main():
 
 	# loading all data and indicies
 	print('Loading data...')
-	train, val, test, input_shape = getting_prepared_data()
+	Xtrain, Xval, Xtest, ytrain, yval, ytest, input_shape = getting_prepared_data()
 
 	storage = optuna.storages.InMemoryStorage()
 	# reshaping the model input vectors for a single channel
-	study = optuna.create_study(direction='minimize', study_name='nasa_cnn', storage=storage, load_if_exists=True)')
-	study.optimize(lambda trial: objective(trial, train, val, test, input_shape), n_trials=10, callbacks=[lambda study, trial: gc.collect()])
+	study = optuna.create_study(direction='minimize', study_name='nasa_cnn', storage=storage, load_if_exists=True)
+	study.optimize(lambda trial: objective(trial, Xtrain, Xval, Xtest, ytrain, yval, ytest, input_shape), n_trials=10, callbacks=[lambda study, trial: gc.collect()])
 	print(study.best_params)
 
 	run_server(storage)
@@ -197,7 +194,7 @@ def main():
 
 	best_model, ___ = Autoencoder(input_shape, study.best_params)
 
-	best_model.evaluate(test, test)
+	best_model.evaluate(Xtest, ytest)
 
 	best_model.save('models/best_cnns.h5')
 
