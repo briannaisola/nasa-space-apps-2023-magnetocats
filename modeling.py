@@ -47,14 +47,10 @@ from data_prep import DataPrep
 
 os.environ["CDF_LIB"] = "~/CDF/lib"
 
-
-region_path = '../identifying_regions/outputs/twins_era_identified_regions_min_2.pkl'
-region_number = '163'
-solarwind_path = '../data/SW/omniData.feather'
-supermag_dir_path = '../data/supermag/'
-twins_times_path = 'ENA_timestamps.csv'
-rsd_path = '../identifying_regions/outputs/twins_era_stats_dict_radius_regions_min_2.pkl'
+input_file = ''
+target_file = ''
 random_seed = 42
+version = 0
 
 
 # loading config and specific model config files. Using them as dictonaries
@@ -82,13 +78,13 @@ def getting_prepared_data():
 	prep = DataPrep(region_path, region_number, solarwind_path, supermag_dir_path, twins_times_path,
 					rsd_path, random_seed)
 
-	X_train, X_val, X_test, y_train, y_val, y_test = prep.do_full_data_prep(CONFIG)
+	Xtrain, Xval, Xtest, ytrain, yval, ytest = prep.do_full_data_prep(CONFIG)
 
 
-	return X_train, X_val, X_test, y_train, y_val, y_test
+	return Xtrain, Xval, Xtest, ytrain, yval, ytest
 
 
-def create_CNN_model(n_features, loss='mse', early_stop_patience=10):
+def create_CNN_model(n_features, loss='binary_crossentropy', early_stop_patience=10):
 	'''
 	Initializing our model
 
@@ -117,7 +113,7 @@ def create_CNN_model(n_features, loss='mse', early_stop_patience=10):
 	model.add(Dense(MODEL_CONFIG['filters'], activation='relu'))
 	model.add(Dropout(0.2))
 	model.add(Dense(2, activation='linear'))
-	opt = tf.keras.optimizers.Adam(learning_rate=MODEL_CONFIG['initial_learning_rate'])		# learning rate that actually started producing good results
+	opt = tf.keras.optimizers.Adam(learning_rate=MODEL_CONFIG['learning_rate'])		# learning rate that actually started producing good results
 	model.compile(optimizer=opt, loss=loss)					# Ive read that cross entropy is good for this type of model
 	early_stop = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=early_stop_patience)		# early stop process prevents overfitting
 
@@ -125,7 +121,7 @@ def create_CNN_model(n_features, loss='mse', early_stop_patience=10):
 	return model, early_stop
 
 
-def fit_CNN(model, X_train, X_val, y_train, y_val, early_stop):
+def fit_CNN(model, Xtrain, Xval, ytrain, yval, early_stop):
 	'''
 	Performs the actual fitting of the model.
 
@@ -144,12 +140,13 @@ def fit_CNN(model, X_train, X_val, y_train, y_val, early_stop):
 	if not os.path.exists(f'models/model_version_{version}.h5'):
 
 		# reshaping the model input vectors for a single channel
-		Xtrain = xtrain.reshape((xtrain.shape[0], xtrain.shape[1], xtrain.shape[2], 1))
-		Xval = xval.reshape((xval.shape[0], xval.shape[1], xval.shape[2], 1))
+		Xtrain = xtrain.reshape((Xtrain.shape[0], Xtrain.shape[1], Xtrain.shape[2], 1))
+		Xval = xval.reshape((Xval.shape[0], Xval.shape[1], Xval.shape[2], 1))
 
 		# doing the training! Yay!
 		model.fit(Xtrain, ytrain, validation_data=(Xval, yval), verbose=1,
-					shuffle=True, epochs=MODEL_CONFIG['epochs'],  callbacks=[early_stop])
+					shuffle=True, epochs=MODEL_CONFIG['epochs'], batch_size=MODEL_CONFIG['batch_size'],
+					callbacks=[early_stop])
 
 		# saving the model
 		model.save(f'models/model_version_{version}.h5')
@@ -194,6 +191,7 @@ def making_predictions(model, X_test, y_test):
 
 	return results_df
 
+
 def calculate_some_metrics(results_df):
 
 	# This is where we will calclate some metrics for the model
@@ -212,7 +210,7 @@ def main():
 
 	# loading all data and indicies
 	print('Loading data...')
-	X_train, X_val, X_test, y_train, y_val, y_test = getting_prepared_data()
+	Xtrain, Xval, Xtest, ytrain, yval, ytest = getting_prepared_data()
 
 	# creating the model
 	print('Initalizing model...')
@@ -221,15 +219,15 @@ def main():
 
 	# fitting the model
 	print('Fitting model...')
-	MODEL = fit_CNN(MODEL, X_train, X_val, y_train, y_val, early_stop)
+	MODEL = fit_CNN(MODEL, Xtrain, Xval, ytrain, yval, early_stop)
 
 	# making predictions
 	print('Making predictions...')
-	results_df = making_predictions(MODEL, X_test, y_test)
+	results_df = making_predictions(MODEL, Xtest, ytest)
 
 	# saving the results
 	print('Saving results...')
-	results_df.to_feather('outputs/non_twins_results.feather')
+	results_df.to_feather('outputs/results.feather')
 
 	# calculating some metrics
 	print('Calculating metrics...')
@@ -237,7 +235,7 @@ def main():
 
 	# saving the metrics
 	print('Saving metrics...')
-	metrics.to_feather('outputs/non_twins_metrics.feather')
+	metrics.to_feather('outputs/metric_results.feather')
 
 
 
