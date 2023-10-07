@@ -56,8 +56,8 @@ config_path = "config.yaml"
 with open(config_path, 'r') as f:
 	CONFIG = yaml.load(f, Loader=yaml.FullLoader)
 
-if :
-	wandb_logger = WandbLogger(project="geoeffectivenet", log_model=True, name=wandb_run_name)
+if CONFIG["wandb_logging"]:
+	wandb.init(config=CONFIG, project="SpaceApp2023")
 else:
 	wandb_logger = False
 
@@ -145,7 +145,8 @@ def fit_CNN(model, X_train, X_val, y_train, y_val, early_stop):
 
 		# doing the training! Yay!
 		model.fit(Xtrain, ytrain, validation_data=(Xval, yval), verbose=1,
-					shuffle=True, epochs=CONFIG['epochs'],  callbacks=[early_stop])
+					shuffle=True, epochs=CONFIG['epochs'],  callbacks=[early_stop, WandbMetricsLogger(),
+																	   WandbModelCheckpoint("model_checkpoints")])
 
 		# saving the model
 		model.save(f'models/model_version_{version}.h5')
