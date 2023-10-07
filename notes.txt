@@ -1,0 +1,6 @@
+These are notes for things I need to do later.
+
+
+Mike:
+
+- Need to know what the time label column is in the discover and hp30 data so these can be aligned.
