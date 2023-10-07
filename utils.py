@@ -4,6 +4,7 @@
 
 
 import pandas as pd
+import numpy as np
 import os
 
 
@@ -16,4 +17,11 @@ def read_year(data_folder, year_int):
                        parse_dates=[0],
                        infer_datetime_format=True, na_values='0',
                        header = None)
-    return data
+    columns = { 
+        key : elem for key, elem in \
+            zip( 
+                  np.arange(data.shape[1]),
+                  ['time','BX','BY','BZ', *[ 'FC'+str(elem) for elem in np.arange(data.shape[1]-4) ]]
+                )
+               }
+    return data.rename(columns=columns)
