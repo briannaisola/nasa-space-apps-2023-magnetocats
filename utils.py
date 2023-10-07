@@ -25,3 +25,13 @@ def read_year(data_folder, year_int):
                 )
                }
     return data.rename(columns=columns)
+
+
+
+def time_subset(data, start=None, end=None):
+
+    if start is None: start = pd.to_datetime(data['time'].iloc[0], unit='s')
+    if end is None: start = pd.to_datetime(data['time'].iloc[-1], unit='s')
+    mask = (pd.to_datetime(data['time'], unit='s') >= start) \
+           & (pd.to_datetime(data['time'], unit='s') <= end)
+    return data[mask]
