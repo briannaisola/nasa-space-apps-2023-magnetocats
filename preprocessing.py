@@ -26,8 +26,8 @@ class dscovr_preprocessor:
     def drop_nan_threshold(self, data, threshold=None):
         if threshold is None: threshold = 0.2
         
-        fc_vars = self.get_fc_vars(self.dat)
-        fc_dat = self.dat[fc_vars]
+        fc_vars = self.get_fc_vars(data)
+        fc_dat = data[fc_vars]
 
         feature_nan_fracs = fc_dat.isna().sum(axis=0) / fc_dat.shape[0]
         print('nan dist:',feature_nan_fracs)
