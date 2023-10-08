@@ -6,13 +6,14 @@
 import pandas as pd
 import numpy as np
 import os
+import tqdm
 
 
 
 
 def read_all_data(data_folder):
     dat = []
-    for year in np.arange(2016,2023+1):
+    for year in tqdm.tqdm(np.arange(2016,2023+1)):
         dat.append( read_year(data_folder, year) )
     return pd.concat(dat)
 
