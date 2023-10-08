@@ -26,8 +26,7 @@ def read_year(data_folder, year_int):
     file_path = os.path.join(data_folder, file_name)
     data = pd.read_csv(file_path,
                        delimiter = ',',
-                       parse_dates=[0],
-                       infer_datetime_format=True, na_values='0',
+                       parse_dates=[0], na_values='0',
                        header = None)
     columns = { 
         key : elem for key, elem in \
