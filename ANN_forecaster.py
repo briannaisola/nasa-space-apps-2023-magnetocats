@@ -5,6 +5,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 from tensorflow.keras.backend import clear_session
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.layers import (Activation, BatchNormalization, Conv2D,
@@ -16,6 +17,8 @@ from tensorflow.keras.optimizers import Adam
 import utils
 import preprocessing
 import tqdm
+import warnings
+warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)  # Suppress pesky performance warnings
 
 
 def create_delays(df, name, time=20):
@@ -93,7 +96,7 @@ class Forecaster(Sequential):
 
 
 if __name__ == "__main__":
-    # wandb.init(project="SpaceApp2023")
+    wandb.init(project="SpaceApp2023")
 
     use_pretrained_model = False
 
@@ -102,12 +105,9 @@ if __name__ == "__main__":
     dscovr_time = dscovr_df["time"]
     dscovr_df.drop(columns=["time"], inplace=True)
 
-    # dscovr_df.set_index("time", inplace=True, drop=True)
-
     hp_df = pd.read_csv("storm_multiclass_data.csv")
     hp_df = hp_df[["time", "above_3", "above_6", "above_9"]]
     hp_df["time"] = pd.to_datetime(hp_df["time"])
-    # hp_df.set_index("time", inplace=True, drop=True)
 
     # Preprocessing
     print("Preprocessing data...")
@@ -115,7 +115,7 @@ if __name__ == "__main__":
     dscovr_df = preprocessor.drop_nan_threshold(dscovr_df, threshold=0.2)  # Drop features with more than 20% NaNs
     dscovr_df = preprocessor.select_across_k_cups(dscovr_df, k=5)  # Only use every k-th cup
 
-    for param in tqdm.tqdm(list(dscovr_df), desc=f"Creating time history for non-DMSP case"):
+    for param in tqdm.tqdm(list(dscovr_df), desc=f"Creating time history"):
         create_delays(dscovr_df, param, time=30)
 
     dscovr_df["time"] = dscovr_time.dt.tz_localize("UTC")
@@ -129,33 +129,35 @@ if __name__ == "__main__":
     print(f"Percentage of data remaining: {len(all_data)/original_len*100:.2f}")
 
     print("Splitting and scaling")
-    all_time = all_data["time"]
-    all_data.drop(columns=["time"], inplace=True)
     X = all_data[list(dscovr_df)]
     y = all_data[list(hp_df)]
-    X.set_index(all_time, inplace=True)
-    y.set_index(all_time, inplace=True)
+    X.set_index("time", inplace=True, drop=True)
+    y.set_index("time", inplace=True, drop=True)
     train_X, test_X, train_y, test_y = train_test_split(X, y, test_size=0.2, shuffle=True)
+    X_scaler = StandardScaler()
+    train_X, test_X = np.sqrt(train_X), np.sqrt(test_X)
+    train_X = X_scaler.fit_transform(train_X)
+    test_X = X_scaler.transform(test_X)
 
     if use_pretrained_model:
         # Since we're using a subclassed model, we need to re-instantiate it and load the weights into it
-        gap_filler = GapFiller((train_X.shape[1],), train_y.shape[1],
+        forecaster = Forecaster((train_X.shape[1],), train_y.shape[1],
                                config={"loss": "mse", "optimizer": Adam(learning_rate=1e-2)})
-        gap_filler.load_weights("forecaster.h5")
+        forecaster.load_weights("forecaster.h5")
     else:
         # Instantiate and train model
-        gap_filler = GapFiller((train_X.shape[1],), train_y.shape[1],
+        forecaster = Forecaster((train_X.shape[1],), train_y.shape[1],
                                config={"loss": "mse", "optimizer": Adam(learning_rate=1e-3)})
-        gap_filler.compile_model()
-        gap_filler.fit_model(train_X, train_y, test_X, test_y, epochs=50, batch_size=64)
+        forecaster.compile_model()
+        forecaster.fit_model(train_X, train_y, test_X, test_y, epochs=50, batch_size=64)
 
-    predictions, rmse, mae, r2 = gap_filler.evaluate_model(test_X, test_y, plot=True)
+    predictions, rmse, mae, r2 = forecaster.evaluate_model(test_X, test_y, plot=True)
     print(f"RMSE: {rmse}, MAE: {mae}, R2: {r2}")
 
     # Save predictions and model
-    predictions = pd.DataFrame(predictions, columns=list(plasma_df))
+    predictions = pd.DataFrame(predictions, columns=list(hp_df))
     predictions.set_index(test_y.index, inplace=True)
     pd.DataFrame(predictions).to_csv("forecast_data.csv")
-    gap_filler.save_weights("forecaster.h5")
+    forecaster.save_weights("forecaster.h5")
 
     print("Done! Yay!")
