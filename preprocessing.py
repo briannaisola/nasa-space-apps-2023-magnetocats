@@ -3,6 +3,7 @@
 
 
 import numpy as np
+import pandas as pd
 
 
 
@@ -27,6 +28,7 @@ class dscovr_preprocessor:
         if threshold is None: threshold = 0.2
         
         fc_vars = self.get_fc_vars(data)
+        other_vars = np.setdiff1d( list(data), fc_vars ).tolist()
         fc_dat = data[fc_vars]
 
         feature_nan_fracs = fc_dat.isna().sum(axis=0) / fc_dat.shape[0]
@@ -41,7 +43,10 @@ class dscovr_preprocessor:
         vars_to_keep = np.setdiff1d( fc_vars, feats_to_drop ).tolist()
         # ... and make sure that they're in the original FC sorted order!
         vars_to_keep = np.array(vars_to_keep)[ np.argsort( [ int(elem[2:]) for elem in vars_to_keep ] ) ]
-        return fc_dat[vars_to_keep]
+        
+        # rejoin original vars and kept features
+        return pd.concat( [ data[other_vars], fc_dat[vars_to_keep] ], axis=1 )
+
     
     
     
@@ -50,13 +55,15 @@ class dscovr_preprocessor:
         
         # get fc vars for data provided
         fc_vars = self.get_fc_vars(data)
+        other_vars = np.setdiff1d( list(data), fc_vars ).tolist()
         
         # keep only FC vars for those in blocks of length k - ignore remainder
-        feat_inds_to_keep = len(fc_vars) - (len(fc_vars) % k) + 1
+        feat_inds_to_keep = len(fc_vars) - (len(fc_vars) % k)
         feats_to_keep_k_blocks = np.array(fc_vars)[ :feat_inds_to_keep ].tolist()
         
         # extract first feature of every k-length block
         feat_inds_to_keep_per_block = np.arange(0, feat_inds_to_keep, step=k)
         feats_to_keep = np.array(feats_to_keep_k_blocks)[ feat_inds_to_keep_per_block ].tolist()
         
-        return data[feats_to_keep]
+        #return data[feats_to_keep]
+        return pd.concat( [ data[other_vars], data[feats_to_keep] ], axis=1 )
