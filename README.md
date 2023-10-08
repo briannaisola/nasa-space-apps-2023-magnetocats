@@ -1,9 +1,10 @@
 # Terrestrial-Space Weather Integrated Forecasting Tool (T-SWIFT)
-**Welcome to the landing page for T-SWIFT**! 
+**It's me, hi. I'm T-SWIFT**. Welcome to the landing page!
+
 
 T-SWIFT is a CNN model for predicitng geomagnetic storms created part of the [2023 NASA Space Apps Challenge](https://www.spaceappschallenge.org/) hackathon.
 
-T-SWIFT was developed by team [Magnetocats](https://www.spaceappschallenge.org/2023/find-a-team/magnetocats/), featuring six PhD students from the[ University of New Hampshire Space Space Science Center](https://eos.unh.edu/space-science-center): Mayowa Adewuyi, Mike Coughlan, James Edmond, Brianna Isola, Raman Mukundan and Neha Srivastava.
+This model was developed by team [Magnetocats](https://www.spaceappschallenge.org/2023/find-a-team/magnetocats/), featuring six PhD students from the[ University of New Hampshire Space Space Science Center](https://eos.unh.edu/space-science-center): Mayowa Adewuyi, Mike Coughlan, James Edmond, Brianna Isola, Raman Mukundan and Neha Srivastava.
 
 ## The Challenge 
 
@@ -19,6 +20,9 @@ See:
 ## Model Overview
 
 TBD.
+
+### Running T-Swift
+_Are you ready for it?_
 
 ## File Descriptions
 * `data-overview.py`;  Jupyter Notebook with examples for processing and plotting data
