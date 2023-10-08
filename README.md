@@ -25,8 +25,8 @@ TBD.
 _Are you ready for it?_
 
 ## Directory & File Descriptions
-*`data/dscovr/`; loation of raw DSCOVER datafiles
-*`figures`; example figures and images
+* `data/dscovr/`; loation of raw DSCOVER datafiles
+* `figures`; example figures and images
 * `data-overview.py`;  Jupyter Notebook with examples for processing and plotting data
 
 
