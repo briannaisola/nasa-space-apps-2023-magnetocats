@@ -73,6 +73,28 @@ def plot_rolling_envelope(data, columns=None, window_str=None, min_pts=None):
             axes[i].tick_params(axis='x', labelbottom=False)
         else:
             axes[i].tick_params(axis='x', labelrotation=20)
+            
+            
+            
+
+def plot_var_overview(ax, t, var, ylab=False, **kwargs):
+    """quick and dirty method for plotting overview of data
+
+    Args:
+        ax (plot axis): ax to plot on
+        t (dataframe): time variable df
+        var (dataframe): variable df to plot
+        ylab (bool, optional): label y-axis. Defaults to False.
+    """
+    
+    var_name = var.name # get variable name
+
+    ax.plot(t,var, linewidth=1, label=var_name, **kwargs)
+    if ylab == True:
+        ax.set_xlabel(f"year")
+    
+    # plot legend
+    ax.legend(bbox_to_anchor=(1, 1))
     
     
     
