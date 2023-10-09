@@ -1,9 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Sat Oct  7 11:22:50 2023
-
-@author: may7e
-"""
 
 """
 getKpindex.py
