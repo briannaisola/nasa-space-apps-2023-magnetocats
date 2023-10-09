@@ -67,3 +67,12 @@ class dscovr_preprocessor:
         
         #return data[feats_to_keep]
         return pd.concat( [ data[other_vars], data[feats_to_keep] ], axis=1 )
+
+    def high_value_cutoff(self, data, cutoff):
+        fc_vars = self.get_fc_vars(data)
+        other_vars = np.setdiff1d( list(data), fc_vars ).tolist()
+        fc_dat = data[fc_vars]
+
+        fc_dat.values = np.clip(fc_dat.values, 0, cutoff)
+
+        return pd.concat( [ data[other_vars], fc_dat ], axis=1 )
