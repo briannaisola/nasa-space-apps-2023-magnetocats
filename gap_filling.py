@@ -27,11 +27,11 @@ class GapFiller(Sequential):
         self.build_model()
 
     def build_model(self):
-        self.add(Dense(80, input_shape=self.input_shape_, activation="relu"))
+        self.add(Dense(10, input_shape=self.input_shape_, activation="relu"))
         self.add(Dropout(0.2))
-        # self.add(Dense(20, activation="relu"))
-        # self.add(Dropout(0.2))
-        self.add(Dense(40, activation="linear"))
+        self.add(Dense(20, activation="relu"))
+        self.add(Dropout(0.2))
+        self.add(Dense(10, activation="linear"))
         self.add(Dropout(0.2))
         self.add(Dense(self.output_shape_))
 
@@ -78,7 +78,7 @@ class GapFiller(Sequential):
 
 
 if __name__ == "__main__":
-    # wandb.init(project="SpaceApp2023")
+    wandb.init(project="SpaceApp2023")
 
     use_pretrained_model = False
 
@@ -91,6 +91,9 @@ if __name__ == "__main__":
     preprocessor = preprocessing.dscovr_preprocessor()
     dscovr_df = preprocessor.drop_nan_threshold(dscovr_df, threshold=0.2)  # Drop features with more than 20% NaNs
     dscovr_df = preprocessor.select_across_k_cups(dscovr_df, k=5)  # Only use every k-th cup
+    discovr_index = dscovr_df.index
+    dscovr_df = preprocessor.high_value_cutoff(dscovr_df.reset_index(drop=True), cutoff=600)
+    dscovr_df.set_index(discovr_index, inplace=True)
 
     # Drop NaNs
     original_len = len(dscovr_df)
@@ -107,14 +110,14 @@ if __name__ == "__main__":
     if use_pretrained_model:
         # Since we're using a subclassed model, we need to re-instantiate it and load the weights into it
         gap_filler = GapFiller((train_X.shape[1],), train_y.shape[1],
-                               config={"loss": "mse", "optimizer": Adam(learning_rate=1e-2)})
+                               config={"loss": "mse", "optimizer": Adam(learning_rate=1e-4)})
         gap_filler.load_weights("gap_filler.h5")
     else:
         # Instantiate and train model
         gap_filler = GapFiller((train_X.shape[1],), train_y.shape[1],
-                               config={"loss": "mse", "optimizer": Adam(learning_rate=1e-3)})
+                               config={"loss": "mse", "optimizer": Adam(learning_rate=1e-4)})
         gap_filler.compile_model()
-        gap_filler.fit_model(train_X, train_y, test_X, test_y, epochs=50, batch_size=64)
+        gap_filler.fit_model(train_X, train_y, test_X, test_y, epochs=200, batch_size=64)
 
     predictions, rmse, mae, r2 = gap_filler.evaluate_model(test_X, test_y, plot=True)
     print(f"RMSE: {rmse}, MAE: {mae}, R2: {r2}")
@@ -122,7 +125,6 @@ if __name__ == "__main__":
     # Save predictions and model
     predictions = pd.DataFrame(predictions, columns=list(plasma_df))
     predictions.set_index(test_y.index, inplace=True)
-    pd.DataFrame(predictions).to_csv("filled_gaps.csv")
     gap_filler.save_weights("gap_filler.h5")
 
     print("Done! Yay!")

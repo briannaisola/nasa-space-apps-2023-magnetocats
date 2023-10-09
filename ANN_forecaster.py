@@ -16,6 +16,7 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from tensorflow.keras.optimizers import Adam
 import utils
 import preprocessing
+from gap_filling import GapFiller
 import tqdm
 import warnings
 warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)  # Suppress pesky performance warnings
@@ -75,7 +76,6 @@ class Forecaster(Sequential):
                     baseline=None,
                     restore_best_weights=True,
                 ),
-                WandbModelCheckpoint("model_checkpoints"),
                 WandbMetricsLogger()
             ],
         )
@@ -86,26 +86,49 @@ class Forecaster(Sequential):
         mae = mean_absolute_error(y_test, y_pred)
         r2 = r2_score(y_test, y_pred)
         if plot:
-            plt.plot(range(len(y_pred)), y_pred, label="Predicted")
-            plt.plot(range(len(y_test)), y_test, label="Actual")
-            plt.title("Hp30 Forecast")
+            plt.plot(range(len(y_pred[0])), y_pred, label="Predicted")
+            plt.plot(range(len(y_test[0])), y_test, label="Actual")
+            plt.title("Whether Hp30 is above 3")
             plt.legend()
             # plt.savefig("forecasting_performance.png")
             plt.show()
         return y_pred, rmse, mae, r2
 
 
+def fill_gaps(df, linear_limit=0, ml_limit=0):
+    '''
+    Given a gap in the data, fill it using the gap filling model in `gap_filling.py`
+    :param timestep: The input timestep to fill, including BX, BY, and BZ
+    :return: The timestep with gaps filled by interpolation and ML
+    '''
+    gap_filler = GapFiller((3,), len(df.columns)-3,
+                           config={"loss": "mse", "optimizer": Adam(learning_rate=1e-2)})
+    gap_filler.load_weights("gap_filler.h5")
+
+    # Interpolate small gaps linearly
+    df.interpolate(method="linear", limit=linear_limit, inplace=True)
+
+    for timestep in tqdm.trange(len(df), desc="Using ML to fill large gaps"):
+        if df.iloc[timestep:timestep+ml_limit].isna().sum().sum():
+            if df.iloc[timestep].isna().sum() and not df[["BX", "BY", "BZ"]].iloc[timestep].isna().sum():  # If there is a gap in the plasma data but not in the B-field
+                atomic_prediction = gap_filler.predict(df[["BX", "BY", "BZ"]].iloc[timestep].values.reshape(1, 3), verbose=0)
+                df.iloc[timestep] = pd.concat([df[["BX", "BY", "BZ"]].iloc[timestep],
+                                               pd.DataFrame(np.reshape(atomic_prediction, (8,1)))], axis=0).T
+
+    return gap_filler.predict(timestep)
+
 if __name__ == "__main__":
     wandb.init(project="SpaceApp2023")
 
     use_pretrained_model = False
+    load_filled_gaps = True
 
     # Load data
     dscovr_df = utils.read_all_data("data/dscovr")
     dscovr_time = dscovr_df["time"]
     dscovr_df.drop(columns=["time"], inplace=True)
 
-    hp_df = pd.read_csv("storm_multiclass_data.csv")
+    hp_df = pd.read_csv("multiclass_data.csv")
     hp_df = hp_df[["time", "above_3", "above_6", "above_9"]]
     hp_df["time"] = pd.to_datetime(hp_df["time"])
 
@@ -114,6 +137,16 @@ if __name__ == "__main__":
     preprocessor = preprocessing.dscovr_preprocessor()
     dscovr_df = preprocessor.drop_nan_threshold(dscovr_df, threshold=0.2)  # Drop features with more than 20% NaNs
     dscovr_df = preprocessor.select_across_k_cups(dscovr_df, k=5)  # Only use every k-th cup
+    dscovr_df.values[:, 3:] = np.sqrt(dscovr_df.values[:, 3:])  # Take square root of all features that are not B-field
+
+    if load_filled_gaps:
+        print(dscovr_df.info())
+        dscovr_df = fill_gaps(dscovr_df, linear_limit=10, ml_limit=30)
+        dscovr_df.to_csv("filled_gaps.csv")
+        print(dscovr_df.info())
+    else:
+        dscovr_df = pd.read_csv("filled_gaps.csv")
+
 
     for param in tqdm.tqdm(list(dscovr_df), desc=f"Creating time history"):
         create_delays(dscovr_df, param, time=30)
@@ -135,14 +168,13 @@ if __name__ == "__main__":
     y.set_index("time", inplace=True, drop=True)
     train_X, test_X, train_y, test_y = train_test_split(X, y, test_size=0.2, shuffle=True)
     X_scaler = StandardScaler()
-    train_X, test_X = np.sqrt(train_X), np.sqrt(test_X)
     train_X = X_scaler.fit_transform(train_X)
     test_X = X_scaler.transform(test_X)
 
     if use_pretrained_model:
         # Since we're using a subclassed model, we need to re-instantiate it and load the weights into it
         forecaster = Forecaster((train_X.shape[1],), train_y.shape[1],
-                               config={"loss": "mse", "optimizer": Adam(learning_rate=1e-2)})
+                               config={"loss": "mse", "optimizer": Adam(learning_rate=1e-3)})
         forecaster.load_weights("forecaster.h5")
     else:
         # Instantiate and train model
