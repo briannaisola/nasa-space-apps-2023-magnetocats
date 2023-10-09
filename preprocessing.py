@@ -70,9 +70,10 @@ class dscovr_preprocessor:
 
     def high_value_cutoff(self, data, cutoff):
         fc_vars = self.get_fc_vars(data)
-        other_vars = np.setdiff1d( list(data), fc_vars ).tolist()
+        other_vars = np.setdiff1d( list(data), fc_vars )
         fc_dat = data[fc_vars]
 
-        fc_dat.values = np.clip(fc_dat.values, 0, cutoff)
+        corrected_array = np.clip(fc_dat.values, 0, cutoff)
+        corrected_df = pd.DataFrame(corrected_array, columns=fc_vars)
 
-        return pd.concat( [ data[other_vars], fc_dat ], axis=1 )
+        return pd.concat( [ data[other_vars], corrected_df ], axis=1 )
