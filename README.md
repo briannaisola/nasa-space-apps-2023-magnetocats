@@ -15,10 +15,6 @@ See:
 * [Team Magnetocats Homepage](https://www.spaceappschallenge.org/2023/find-a-team/magnetocats/)
 * [The DSCOVR Mission - NASA](https://science.nasa.gov/mission/dscovr/)
 
-## Model Overview
-
-TBD.
-
 ### Running T-Swift
 _Are you ready for it?_
 1. Clone this repository in your directory of choice.
