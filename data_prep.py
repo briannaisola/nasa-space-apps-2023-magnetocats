@@ -114,7 +114,7 @@ class DataPrep:
 		return self.input_data
 
 
-	def split_sequences(self, df, target, n_steps=30):
+	def split_sequences(self, sequences, target, n_steps=30):
 		'''
 			Takes input from the input array and creates the input and target arrays that can go into the models.
 
